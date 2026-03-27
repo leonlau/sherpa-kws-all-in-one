@@ -10,7 +10,7 @@ RUN  cd /opt && git clone https://github.com/crosstool-ng/crosstool-ng && chown 
 USER ubuntu
 RUN cd /opt/crosstool-ng && ./bootstrap && ./configure --enable-local && make
 COPY gcc9.config  /opt/crosstool-ng/.config
-RUN cd /opt/crosstool-ng  && CT_JOBS=$(nproc) ./ct-ng  build
+RUN cd /opt/crosstool-ng  && CT_JOBS=$(nproc) CT_LOG=0 ./ct-ng  build
 USER root
 
 
