@@ -27,6 +27,7 @@ RUN cd /opt && wget https://github.com/Kitware/CMake/releases/download/v3.28.6/c
 # 安装 python3.10
 RUN apt-get update && apt install -y build-essential wget curl libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libffi-dev libncurses5-dev libncursesw5-dev libgdbm-dev tk-dev xz-utils && rm -rf /var/lib/apt/lists/*
 RUN cd /opt && wget https://www.python.org/ftp/python/3.10.20/Python-3.10.20.tar.xz && tar xf Python-3.10.20.tar.xz && cd Python-3.10.20 &&  ./configure --prefix=/usr/local/python3.10 --enable-optimizations --with-ensurepip=install && make -j$(nproc) && make install && rm /opt/Python-3.10.20.tar.xz
+RUN /usr/local/python3.10/bin/python3 -m pip install numpy flatbuffers wheel
 ENV PATH="/usr/local/python3.10/bin:${PATH}"
 ENV PATH="/home/ubuntu/x-tools/arm-unknown-linux-gnueabihf/bin:${PATH}"
 
@@ -38,7 +39,7 @@ ENV CC=arm-unknown-linux-gnueabihf-gcc \
     RANLIB=arm-unknown-linux-gnueabihf-ranlib
 
 
-RUN cd /opt && git clone --depth 1 --branch v1.21.1 https://github.com/microsoft/onnxruntime && cd onnxruntime && sed -i 's/5ea4d05e62d7f954a46b3213f9b2535bdd866803/51982be81bbe52572b54180454df11a3ece9a934/g' ./cmake/deps.txt &&  python3 ./tools/ci_build/build.py \
+RUN cd /opt && git clone --depth 1 --branch v1.21.1 https://github.com/microsoft/onnxruntime && cd onnxruntime && sed -i 's/5ea4d05e62d7f954a46b3213f9b2535bdd866803/51982be81bbe52572b54180454df11a3ece9a934/g' ./cmake/deps.txt &&  /usr/local/python3.10/bin/python3 ./tools/ci_build/build.py \
             --compile_no_warning_as_error \
             --build_dir ./build-arm \
             --config Release \
