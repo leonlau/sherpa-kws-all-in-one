@@ -37,11 +37,26 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
+          push: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          outputs: type=docker,dest=/tmp/image.tar
+          build-args: |
+            BUILDKIT_PROGRESS=plain
+
+      - name: Upload build image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/image.tar
+          retention-days: 1
+
+      - name: Load Docker image
+        run: |
+          docker load --input /tmp/image.tar
+          docker tag $(docker images -q sherpa-kws-builder) ghcr.io/${{ github.repository_owner }}/sherpa-kws-builder:latest
 
       - name: Create output directory
         run: mkdir -p output
