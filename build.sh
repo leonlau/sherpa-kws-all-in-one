@@ -12,7 +12,6 @@ ${CXX} \
     -L/build/install/lib \
     -L${SYSROOT}/usr/lib/arm-linux-gnueabihf \
     -lsherpa-onnx-c-api \
-    -lonnxruntime \
     -lasound \
     -lpthread \
     -std=c++14 \

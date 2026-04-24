@@ -44,14 +44,15 @@ RUN cd /opt && git clone --depth 1 --branch v1.21.1 https://github.com/microsoft
             --build_dir ./build-arm \
             --config Release \
             --build \
-            --build_shared_lib \
+            --build_shared_lib=OFF \
+            --enable_static \
             --update \
             --cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF \
             --cmake_extra_defines CMAKE_INSTALL_PREFIX=./build-arm/install/ \
             --cmake_extra_defines CMAKE_SYSTEM_NAME=Linux \
             --cmake_extra_defines CMAKE_SYSTEM_PROCESSOR=armv7l \
             --cmake_extra_defines CMAKE_C_FLAGS="-mfpu=neon -mfloat-abi=hard -march=armv7-a" \
-            --cmake_extra_defines CMAKE_CXX_FLAGS="-mfpu=neon -mfloat-abi=hard -march=armv7-a -Wno-error -fpermissive -static-libstdc++ -static-libgcc" \
+            --cmake_extra_defines CMAKE_CXX_FLAGS="-mfpu=neon -mfloat-abi=hard -march=armv7-a -Wno-error -fpermissive -static-libstdc++ -static-libgcc -Wl,--gc-sections" \
             --target install \
             --parallel \
             --skip_tests \
@@ -78,13 +79,14 @@ RUN cd /opt && git clone --depth 1 https://github.com/k2-fsa/sherpa-onnx.git && 
       -DCMAKE_SYSTEM_PROCESSOR=armv7l \
       -DCMAKE_SYSROOT=${SYSROOT} \
       -DCMAKE_LIBRARY_ARCHITECTURE=arm-linux-gnueabihf \
-      -DCMAKE_EXE_LINKER_FLAGS="-L${SYSROOT}/usr/lib/arm-linux-gnueabihf" \
-      -DCMAKE_SHARED_LINKER_FLAGS="-L${SYSROOT}/usr/lib/arm-linux-gnueabihf" \
+      -DCMAKE_EXE_LINKER_FLAGS="-L${SYSROOT}/usr/lib/arm-linux-gnueabihf -Wl,--gc-sections" \
+      -DCMAKE_SHARED_LINKER_FLAGS="-L${SYSROOT}/usr/lib/arm-linux-gnueabihf -Wl,--gc-sections" \
       -DCMAKE_FIND_ROOT_PATH=${SYSROOT} \
       -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
       -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
       -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
-      -DCMAKE_CXX_FLAGS="-static-libstdc++ -static-libgcc" \
+      -DCMAKE_CXX_FLAGS="-static-libstdc++ -static-libgcc -Wl,--gc-sections" \
+      -DONNXRUNTIME_LIB=/opt/onnxruntime/build-arm/Release/build-arm/install/lib/libonnxruntime.a \
       -DBUILD_SHARED_LIBS=ON \
       -DSHERPA_ONNX_ENABLE_PYTHON=OFF \
       -DSHERPA_ONNX_ENABLE_TESTS=OFF \
@@ -96,7 +98,8 @@ RUN cd /opt && git clone --depth 1 https://github.com/k2-fsa/sherpa-onnx.git && 
       -DCMAKE_INSTALL_PREFIX=/build/install \
       .. && \
     make -j$(nproc) && \
-    make install
+    make install && \
+    arm-unknown-linux-gnueabihf-strip -s /build/install/lib/libsherpa-onnx-c-api.so
 
 
 WORKDIR /build
@@ -108,12 +111,11 @@ COPY build.sh /build/
 # Build the demo
 RUN /build/build.sh
 
-# Output directory - collect ALL artifacts
+# Output directory - collect artifacts (merged libsherpa-onnx-c-api.so contains onnxruntime)
 RUN mkdir -p /output && \
     cp /build/sherpa_kws_demo /output/ && \
-    cp /build/install/lib/*.so* /output/ && \
+    cp /build/install/lib/libsherpa-onnx-c-api.so* /output/ && \
     tar -czf /output/x-tools.tar.gz -C /home/ubuntu x-tools && \
-    tar -czf /output/onnxruntime.tar.gz -C /opt onnxruntime && \
     tar -czf /output/sherpa-onnx.tar.gz -C /opt sherpa-onnx
 
 CMD ["cp", "-r", "/output/.", "/host-output/"]
