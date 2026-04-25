@@ -40,22 +40,27 @@ ENV CC=arm-unknown-linux-gnueabihf-gcc \
 
 
 RUN cd /opt && git clone --depth 1 --branch v1.21.1 https://github.com/microsoft/onnxruntime && cd onnxruntime && \
-    mkdir build-arm && cd build-arm && \
-    /usr/local/bin/cmake \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_SYSTEM_NAME=Linux \
-        -DCMAKE_SYSTEM_PROCESSOR=armv7l \
-        -DCMAKE_C_FLAGS="-mfpu=neon -mfloat-abi=hard -march=armv7-a" \
-        -DCMAKE_CXX_FLAGS="-mfpu=neon -mfloat-abi=hard -march=armv7-a -Wno-error -fpermissive -static-libstdc++ -static-libgcc -Wl,--gc-sections" \
-        -DBUILD_SHARED_LIBS=OFF \
-        -DONNXRUNTIME_BUILD_UNIT_TESTS=OFF \
-        -DCMAKE_INSTALL_PREFIX=/opt/onnxruntime/build-arm/install \
-        .. && \
-    make -j$(nproc) && \
-    make install
+    sed -i 's/5ea4d05e62d7f954a46b3213f9b2535bdd866803/51982be81bbe52572b54180454df11a3ece9a934/g' ./cmake/deps.txt && \
+    /usr/local/python3.10/bin/python3 ./tools/ci_build/build.py \
+            --compile_no_warning_as_error \
+            --build_dir ./build-arm \
+            --config Release \
+            --build \
+            --build_shared_lib \
+            --update \
+            --cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF \
+            --cmake_extra_defines CMAKE_INSTALL_PREFIX=./build-arm/install/ \
+            --cmake_extra_defines CMAKE_SYSTEM_NAME=Linux \
+            --cmake_extra_defines CMAKE_SYSTEM_PROCESSOR=armv7l \
+            --cmake_extra_defines CMAKE_C_FLAGS="-mfpu=neon -mfloat-abi=hard -march=armv7-a" \
+            --cmake_extra_defines CMAKE_CXX_FLAGS="-mfpu=neon -mfloat-abi=hard -march=armv7-a -Wno-error -fpermissive -static-libstdc++ -static-libgcc" \
+            --target install \
+            --parallel \
+            --skip_tests \
+            --allow_running_as_root
 
-ENV SHERPA_ONNXRUNTIME_LIB_DIR=/opt/onnxruntime/build-arm/install/lib
-ENV SHERPA_ONNXRUNTIME_INCLUDE_DIR=/opt/onnxruntime/build-arm/install/include
+ENV SHERPA_ONNXRUNTIME_LIB_DIR=/opt/onnxruntime/build-arm/Release/build-arm/install/lib
+ENV SHERPA_ONNXRUNTIME_INCLUDE_DIR=/opt/onnxruntime/build-arm/Release/build-arm/install/include/onnxruntime
 
 # Add armhf architecture
 # RUN echo "deb [arch=armhf] http://archive.debian.org/debian stretch main" >> /etc/apt/sources.list && dpkg --add-architecture armhf
@@ -82,7 +87,7 @@ RUN cd /opt && git clone --depth 1 https://github.com/k2-fsa/sherpa-onnx.git && 
       -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
       -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
       -DCMAKE_CXX_FLAGS="-static-libstdc++ -static-libgcc -Wl,--gc-sections" \
-      -DONNXRUNTIME_LIB=/opt/onnxruntime/build-arm/install/lib/libonnxruntime.a \
+      -DSHERPA_ONNX_ONNXRUNTIME_LIB=/opt/onnxruntime/build-arm/Release/build-arm/install/lib/libonnxruntime.so \
       -DBUILD_SHARED_LIBS=ON \
       -DSHERPA_ONNX_ENABLE_PYTHON=OFF \
       -DSHERPA_ONNX_ENABLE_TESTS=OFF \
@@ -95,7 +100,8 @@ RUN cd /opt && git clone --depth 1 https://github.com/k2-fsa/sherpa-onnx.git && 
       .. && \
     make -j$(nproc) && \
     make install && \
-    arm-unknown-linux-gnueabihf-strip -s /build/install/lib/libsherpa-onnx-c-api.so
+    arm-unknown-linux-gnueabihf-strip -s /build/install/lib/libsherpa-onnx-c-api.so && \
+    arm-unknown-linux-gnueabihf-strip -s /opt/onnxruntime/build-arm/Release/build-arm/install/lib/libonnxruntime.so
 
 
 WORKDIR /build
@@ -107,10 +113,11 @@ COPY build.sh /build/
 # Build the demo
 RUN /build/build.sh
 
-# Output directory - collect artifacts (merged libsherpa-onnx-c-api.so contains onnxruntime)
+# Output directory - collect artifacts (stripped libs)
 RUN mkdir -p /output && \
     cp /build/sherpa_kws_demo /output/ && \
     cp /build/install/lib/libsherpa-onnx-c-api.so* /output/ && \
+    cp /opt/onnxruntime/build-arm/Release/build-arm/install/lib/libonnxruntime.so* /output/ && \
     tar -czf /output/x-tools.tar.gz -C /home/ubuntu x-tools && \
     tar -czf /output/sherpa-onnx.tar.gz -C /opt sherpa-onnx
 
